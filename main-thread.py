@@ -11,11 +11,12 @@ from http.client import HTTPException
 # блок настроек
 profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # директория кэша Chrome
 driver_dir = ".\chromedriver.exe"  # путь до драйвера Chrome
-count = 100  # количество записей для парсинга
+count = 50   # количество записей для парсинга
 fullsize_images = 0  # сохранять миниатюры картинок(0) или полные изображения(1). При включении скорость работы падает
-download_images = 1  # сохранять(1) или нет (0) картинки на жесткий диск. При включении скорость работы падает
+download_images = 0  # сохранять(1) или нет (0) картинки на жесткий диск. При включении скорость работы падает
+login = "anton-logom@yandex.ru"  # логин аккаунта вк (требуется только если авторизация в браузере не выполнена)
+password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
 # конец блока настроек
-
 
 def pr_text(post_all1):
     i = 0
@@ -38,7 +39,7 @@ def pr_text(post_all1):
                     post_text = post1.find_element_by_class_name("wall_post_text")
                     data_text = data_text + "\n" + post_text.text + "\n"
                 except Exception:
-                    data_text = data_text = data_text + "\n" + "в посте нет текста или его невозможно загрузить" + "\n"
+                    data_text = data_text + "\n" + "в посте нет текста или его невозможно загрузить" + "\n"
                 insert_to_list("pr_text", data_text, i)
     print("Парсинг текста завершен")
 
@@ -161,6 +162,35 @@ def is_list_complete(tip, this_i):
         return 0
 
 
+def avtorization(login, password):
+    check = 0
+    try:
+        driver.find_element_by_class_name("post")
+        check = 1
+    except NoSuchElementException:
+        print("Авторизация отсутствует. Поставляем логин и пароль из настроек...")
+        driver.get('https://vk.com/id1')
+        time.sleep(0.5)
+        elem = driver.find_element_by_name('email')
+        elem.send_keys(login)
+        elem = driver.find_element_by_name('pass')
+        elem.send_keys(password)
+        elem.send_keys(Keys.RETURN)
+        time.sleep(0.5)
+        driver.get('https://vk.com/feed')
+        try:
+            driver.find_element_by_class_name("post")
+            check = 1
+        except NoSuchElementException:
+            pass
+    if check:
+        print("Авторизовались успешно")
+        return 1
+    else:
+        print("Авторизация не удалась")
+        return 0
+
+
 class MyThread(threading.Thread):
     def __init__(self, name, posts):
         threading.Thread.__init__(self)
@@ -202,38 +232,39 @@ if __name__ == '__main__':
     driver.get('http://vk.com/feed')
     time.sleep(0.1)
 
-    print('Подгружаем все посты на страницу...')
-    while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() <= count:
-        driver.execute_script("feed.showMore();")
-        time.sleep(0.1)
+    if avtorization(login, password):
+        print('Подгружаем все посты на страницу...')
+        while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() <= count:
+            driver.execute_script("feed.showMore();")
+            time.sleep(0.1)
 
-    print('Начинаем парсинг')
-    print("=================")
+        print('Начинаем парсинг')
+        print("=================")
 
-    post_all = driver.find_elements_by_class_name("post")
+        post_all = driver.find_elements_by_class_name("post")
 
-#    Создаем группу потоков
-    all_threads = []
-    for ii in ["pr_text", "pr_links", "pr_images"]:
-        my_thread = MyThread(ii, post_all)
-        my_thread.start()
-        all_threads.append(my_thread)
+    #    Создаем группу потоков
+        all_threads = []
+        for ii in ["pr_text", "pr_links", "pr_images"]:
+            my_thread = MyThread(ii, post_all)
+            my_thread.start()
+            all_threads.append(my_thread)
 
-    for t in all_threads:
-        t.join()
+        for t in all_threads:
+            t.join()
 
-    time.sleep(0.5)
-
-    while len(threading.enumerate()) > 1:
         time.sleep(0.5)
-        pass
-    print('Завершаем работу браузера...')
-    driver.close()
-    print('Парсинг завершен.')
 
-    pr_print()
+        while len(threading.enumerate()) > 1:
+            time.sleep(0.5)
+            pass
+        print('Завершаем работу браузера...')
 
-    print("время работы составило: %s сек" % (time.time() - start_time))
+        driver.close()
+        print('Парсинг завершен.')
+
+        pr_print()
+        print("время работы составило: %s сек" % (time.time() - start_time))
 
 
 
