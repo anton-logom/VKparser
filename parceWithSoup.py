@@ -18,7 +18,7 @@ def parce_text(posts):
                 text = post_text.text
                 data_text += "\n" + text + "\n"
             except Exception:
-                data_text += "\n" + "в посте нет текста или его невозможно загрузить" + "\n"
+                data_text += "\n" + "В посте отсутсвует текст или его невозможно загрузить." + "\n"
             insert_to_list("pr_text", data_text, post_num)
     print("Парсинг текста завершен.")
 
@@ -74,9 +74,9 @@ def parce_images(posts):
                         data_images = data_images + out_image_path + '\n'
 
                     else:
-                        data_images = data_images + "Содержится видео, пропущено" + '\n'
+                        data_images = data_images + "Содержится видео, пропущено." + '\n'
                 except Exception:
-                    data_images += 'изображения нет или ошибка загрузки' + '\n'
+                    data_images += 'Изображение отсутсвует или возникоа ошибка загрузки.' + '\n'
             insert_to_list("pr_images", data_images, post_num)
     print("Парсинг изображений завершен.")
 
@@ -106,27 +106,32 @@ def print_posts():
         print('---------------')
 
 
-# class MyThread(threading.Thread):
-#     def __init__(self, name, posts):
-#         threading.Thread.__init__(self)
-#         self.name = name
-#         self.posts = posts
-#
-#     def run(self):
-#         # Запуск потока
-#         try:
-#             if self.name == "pr_text":
-#                 print("Запуск потока парсинга текста...")
-#                 parce_text(self.posts)
-#             if self.name == "pr_links":
-#                 print("Запуск потока парсинга ссылок...")
-#                 parce_links(self.posts)
-#             if self.name == "pr_images":
-#                 print("Запуск потока парсинга изображений...")
-#                 parce_images(self.posts)
-#         except Exception:
-#             mf = MyThread(self.name, self.posts)
-#             mf.start()
+class MyThread(threading.Thread):
+    def __init__(self, name, posts):
+        threading.Thread.__init__(self)
+        self.name = name
+        self.posts = posts
+
+    def run(self):
+        # Запуск потока
+        # try:
+        if self.name == "pr_text":
+            # print("Запуск потока парсинга текста...")
+            parce_text(self.posts)
+        if self.name == "pr_links":
+            # print("Запуск потока парсинга ссылок...")
+            parce_links(self.posts)
+        if self.name == "pr_images":
+            # print("Запуск потока парсинга изображений...")
+            parce_images(self.posts)
+        # except Exception:
+        #     pass
+        #     mf = MyThread(self.name, self.posts)
+        #     mf.start()
+
+    # def Scrolling(WebDriver driver):
+    #     for j in range (1, 61):
+    #         driver.executeScript("scroll(0,1000000)")
 
 
 if __name__ == '__main__':
@@ -148,9 +153,13 @@ if __name__ == '__main__':
     time.sleep(1)
     driver.get("https://vk.com/feed")
 
+    # while True:
 
-    while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() <= count:
-        driver.execute_script("feed.showMore();")
+    while len(driver.find_elements_by_class_name("post")) <= count:
+        driver.execute_script("scroll(0,1000000)")
+
+    # while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() <= count:
+    #     driver.execute_script("feed.showMore();")
 
     html_source = driver.page_source
     driver.close()
@@ -159,20 +168,20 @@ if __name__ == '__main__':
     soup = BeautifulSoup(html_source, "html.parser")
     all_posts = soup.find_all('div', {"class": "post"})
 
-    thread_links = threading.Thread(target=parce_links(all_posts), name="parce_links")
-    thread_images = threading.Thread(target=parce_images(all_posts), name="parce_images")
-    thread_text = threading.Thread(target=parce_text(all_posts), name="parce_text")
+    # thread_links = threading.Thread(target=parce_links(all_posts), name="parce_links")
+    # thread_images = threading.Thread(target=parce_images(all_posts), name="parce_images")
+    # thread_text = threading.Thread(target=parce_text(all_posts), name="parce_text")
 
-    #Создаем группу потоков
-    # all_threads = []
-    # for i in ["pr_text", "pr_links", "pr_images"]:
-    #     my_thread = MyThread(i, all_posts)
-    #     my_thread.start()
-    #     all_threads.append(my_thread)
-    #
-    # while len(threading.enumerate()) > 1:
-    #     time.sleep(0.5)
-    #     pass
+    # Создаем группу потоков
+    all_threads = []
+    for i in ["pr_text", "pr_links", "pr_images"]:
+        my_thread = MyThread(i, all_posts)
+        my_thread.start()
+        all_threads.append(my_thread)
+
+    while len(threading.enumerate()) > 1:
+        time.sleep(0.5)
+        pass
 
     print_posts()
 
