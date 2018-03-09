@@ -1,17 +1,50 @@
 from selenium import webdriver
-import time, requests, threading, pickle
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import NoSuchElementException
+import time, requests, threading, pickle, os
 from bs4 import BeautifulSoup
+import subprocess
 
-
-#Settings
+# НАСТРОЙКИ
 count = 100
-save_images_path = "/Users/r3m1x/Developer/PycharmProjects/OS/img/"
-chrome_driver_path = "/Users/r3m1x/Developer/PycharmProjects/OS/chromedriver"
-chrome_cash_path = "--user-data-dir=/Users/r3m1x/Developer/PycharmProjects/OS/cash"
+save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
+chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+login = "anton-logom@yandex.ru"  # логин аккаунта вк (требуется только если авторизация в браузере не выполнена)
+password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
+
+
+def avtorization(login, password, driver):
+    check = 0
+    try:
+        driver.find_element_by_class_name("post")
+        check = 1
+    except NoSuchElementException:
+        print("Авторизация отсутствует. Поставляем логин и пароль из настроек...")
+        driver.get('https://vk.com/id1')
+        time.sleep(0.5)
+        elem = driver.find_element_by_name('email')
+        elem.send_keys(login)
+        elem = driver.find_element_by_name('pass')
+        elem.send_keys(password)
+        elem.send_keys(Keys.RETURN)
+        time.sleep(0.5)
+        driver.get('https://vk.com/feed')
+        try:
+            driver.find_element_by_class_name("post")
+            check = 1
+        except NoSuchElementException:
+            pass
+    if check:
+        print("Авторизовались успешно")
+        return 1
+    else:
+        print("Авторизация не удалась")
+        return 0
 
 
 def parce_text(posts, final):
-    print("Начало парсинга текста.")
+    print("Начало парсинга текста...")
     post_num = -1
     for post in posts:
         post_num += 1
@@ -29,7 +62,7 @@ def parce_text(posts, final):
 
 
 def parce_links(posts, final):
-    print("Начало парсинга ссылок.")
+    print("Начало парсинга ссылок...")
     post_num = -1
     for post in posts:
         post_num += 1
@@ -54,7 +87,7 @@ def parce_links(posts, final):
 
 
 def parce_images(posts, final):
-    print("Начало парсинга изображений.")
+    print("Начало парсинга изображений...")
     post_num = -1
     for post in posts:
         post_num += 1
@@ -96,10 +129,10 @@ def insert_to_list(data_type, data, this_i, final):
 
 
 def print_posts(list):
-    print("Вывод данных")
+    print("Начинаем вывод данных...")
     print("=================")
     for i in range(0, len(list)):
-        print("Пост №" + str(i))
+        print("Пост №" + str(i+1))
         print("Автор и текст:")
         print(list[i][0], end='\n')
         if len(list[i][1]) > 1:
@@ -130,46 +163,48 @@ class MyThread(threading.Thread):
 def parce_main(final):
     # count = int(input("Введите кол-во новостей для парсинга: "))
     options = webdriver.ChromeOptions()
-    options.add_argument(chrome_cash_path)
+    options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
     driver = webdriver.Chrome(chrome_driver_path, chrome_options=options)
-
     print('Ждем загрузки страницы...')
-    time.sleep(1)
     driver.get("https://vk.com/feed")
+    time.sleep(0.2)
+    if avtorization(login, password, driver):
+        print('Начинаем копирование из браузера, будет обработано ' + str(count) + ' постов...')
+        # Пролистывание страницы
+        while len(driver.find_elements_by_class_name("post")) < count:
+            driver.execute_script("scroll(0,1000000)")
 
-    #Пролистывание страницы
-    while len(driver.find_elements_by_class_name("post")) < count:
-        driver.execute_script("scroll(0,1000000)")
+        # Прогрузка страницы
+        # while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() < count:
+        #     driver.execute_script("feed.showMore();")
 
-    #Прогрузка страницы
-    # while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() < count:
-    #     driver.execute_script("feed.showMore();")
+        html_source = driver.page_source
+        print("Копирование завершено.")
+        driver.close()
+        print("Драйвер брузера закрыт.")
 
-    html_source = driver.page_source
-    driver.close()
-    print("Chromedriver закрыт.")
+        soup = BeautifulSoup(html_source, "html.parser")
+        all_posts = soup.find_all('div', {"class": "post"})
 
-    soup = BeautifulSoup(html_source, "html.parser")
-    all_posts = soup.find_all('div', {"class": "post"})
+        all_threads = []
+        for i in ["pr_text", "pr_links", "pr_images"]:
+            my_thread = MyThread(i, all_posts, final)
+            my_thread.start()
+            all_threads.append(my_thread)
 
-    all_threads = []
-    for i in ["pr_text", "pr_links", "pr_images"]:
-        my_thread = MyThread(i, all_posts, final)
-        my_thread.start()
-        all_threads.append(my_thread)
+        while len(threading.enumerate()) > 1:
+            time.sleep(0.1)
+            pass
 
-    while len(threading.enumerate()) > 1:
-        time.sleep(0.5)
-        pass
 
 def save_parcelist_to_file(lst):
     with open('outfile', 'wb') as file:
         pickle.dump(lst, file)
 
 
-def open_parcelist_from_file(lst):
+def open_parcelist_from_file():
     with open('outfile', 'rb') as file:
-        lst = pickle.load(file)
+        return pickle.load(file)
 
 if __name__ == '__main__':
     print('Запуск...')
@@ -182,11 +217,13 @@ if __name__ == '__main__':
     parce_main(final_list)
 
     save_parcelist_to_file(final_list)
-    open_parcelist_from_file(final_list)
+    final_list = open_parcelist_from_file()
 
     print_posts(final_list)
 
-    print("Время работы составило: %s сек" % (time.time() - start_time))
+    print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
+
+    print(subprocess.call('python .\db-insert.py', shell=True))
 
 
 
