@@ -5,14 +5,25 @@ import time, requests, threading, pickle, os
 from bs4 import BeautifulSoup
 import subprocess
 from py_linq import Enumerable
+import json
 
 # НАСТРОЙКИ
-count = 100
-save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
-chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-login = "anton-logom@yandex.ru"  # логин аккаунта вк (требуется только если авторизация в браузере не выполнена)
+count = 10
+options = webdriver.ChromeOptions()
+login = ""  # логин аккаунта вк (требуется только если авторизация в браузере не выполнена)
 password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
+
+# Windows
+# save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
+# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+
+# MacOS
+save_images_path = "/Users/r3m1x/OSimg/"
+chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
+chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
+options.add_argument(chrome_cache_path)
 
 
 def avtorization(login, password, driver):
@@ -179,18 +190,17 @@ class MyThread(threading.Thread):
     def run(self):
         if self.name == "authors":
             parce_authors(self.posts, self.list)
-        if self.name == "pr_text":
+        if self.name == "text":
             parce_text(self.posts, self.list)
-        if self.name == "pr_links":
+        if self.name == "links":
             parce_links(self.posts, self.list)
-        if self.name == "pr_images":
+        if self.name == "images":
             parce_images(self.posts, self.list)
 
 
 def parce_main(final):
     # count = int(input("Введите кол-во новостей для парсинга: "))
-    options = webdriver.ChromeOptions()
-    options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+
     driver = webdriver.Chrome(chrome_driver_path, chrome_options=options)
     print('Ждем загрузки страницы...')
     driver.get("https://vk.com/feed")
@@ -214,7 +224,7 @@ def parce_main(final):
         all_posts = soup.find_all('div', {"class": "post"})
 
         all_threads = []
-        for i in ["authors", "pr_text", "pr_links", "pr_images"]:
+        for i in ["authors", "text", "links", "images"]:
             my_thread = MyThread(i, all_posts, final)
             my_thread.start()
             all_threads.append(my_thread)
@@ -233,6 +243,20 @@ def open_parcelist_from_file():
     with open('outfile', 'rb') as file:
         return pickle.load(file)
 
+
+def save_to_json(posts):
+    for i in range(len(posts)):
+        with open('posts.json',
+                  'w') as file:
+            json.dump(posts, file, indent=2, ensure_ascii=False)
+
+
+def load_from_json():
+    with open('posts.json','r') as file:
+        d = json.load(file)
+    return d
+
+
 if __name__ == '__main__':
     print('Запуск...')
     start_time = time.time()
@@ -245,6 +269,12 @@ if __name__ == '__main__':
     # final_list = open_parcelist_from_file()
 
     print_posts(final_list)
+    for j in range(len(final_list)):
+        final_list[j] = {i: final_list[j][i] for i in range(len(final_list[j]))}
+    dict = {i: final_list[i] for i in range(len(final_list))}
+    save_to_json(dict)
+    load_dict = load_from_json()
+    print(load_dict)
 
     print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
 
