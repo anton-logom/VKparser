@@ -1,5 +1,5 @@
 import sqlite3
-import pickle
+import json
 import time
 
 # Настройки (потом уберем в отдельный файл с настройками)
@@ -7,9 +7,14 @@ DBname = 'parser.db'  # Имя файла базы данных
 FileName = 'outfile'   # Имя временного файла
 
 
-def open_parcelist_from_file():
-    with open(FileName, 'rb') as file:
-        return pickle.load(file)
+# def open_parcelist_from_file():
+#     with open(FileName, 'rb') as file:
+#         return pickle.load(file)
+
+def load_from_json():
+    with open('posts.json', 'r', encoding='utf-8') as file:
+        d = json.load(file)
+    return d
 
 
 def db_clear():
@@ -27,19 +32,16 @@ if __name__ == '__main__':
     db_clear()
     conn = sqlite3.connect(DBname)
     c = conn.cursor()
-    list_put = open_parcelist_from_file()
-    # print(len(list_put))
+    list_put = load_from_json()
+
     try:
-        c.executemany('INSERT INTO vk_news ("news-text","news-links", "news-images") VALUES (?,?,?)', list_put)
-        conn.commit()
+        for i in range(len(list_put)):
+            tek = list_put[str(i)]
+            c.execute('INSERT INTO vk_news ("news-author", "news-text", "news-links", "news-images") VALUES (?,?,?,?)', (str(tek["author"]), str(tek["text"]), str(tek["links"]), str(tek["images"])))
+            conn.commit()
         print('Содержимое добавленно в БД')
     except Exception:
-            print('Проблема при записи в БД!')
+        print('Проблема при записи в БД!')
     conn.close()
 
     print("Операции с базой данных завершены, время работы составило: %s сек" % (time.time() - start_time))
-
-
-
-
-# c.execute('INSERT INTO vk_news ("id","news-text","news-images","news-links") VALUES ("' + str(i+1) + '", ""' + str(list_put[i][0]) + '"", ""' + str(list_put[i][1]) + '"", ""' + str(list_put[i][2]) + '"")')

@@ -7,23 +7,24 @@ import subprocess
 from py_linq import Enumerable
 import json
 
-# НАСТРОЙКИ
-count = 10
 options = webdriver.ChromeOptions()
+
+# НАСТРОЙКИ
+count = 100
 login = ""  # логин аккаунта вк (требуется только если авторизация в браузере не выполнена)
 password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
 
 # Windows
-# save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
-# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
+chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
 # MacOS
-save_images_path = "/Users/r3m1x/OSimg/"
-chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
-chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
-options.add_argument(chrome_cache_path)
+# save_images_path = "/Users/r3m1x/OSimg/"
+# chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
+# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
+# options.add_argument(chrome_cache_path)
 
 
 def avtorization(login, password, driver):
@@ -92,6 +93,7 @@ def search_links(post):
         post_links_collection = Enumerable(post_links)
         links = post_links_collection.select(lambda x: 'https://vk.com'+x.attrs["href"])
         links = links.to_list()
+        links = sorted(set(links))
         return links
     else:
         return ["Ссылки отсутсвуют."]
@@ -117,9 +119,10 @@ def save_image(style):
         out_image.write(resource.content)
         out_image.close()
         time.sleep(0.05)
-        return [image_path, out_image_path]
+        #return [image_path, out_image_path]
+        return out_image_path
     else:
-        return ["Содержится видео, пропущено"]
+        return "Содержится видео, пропущено"
 
 
 def search_images(post):
@@ -136,6 +139,7 @@ def search_images(post):
                 return images
             except Exception:
                 print("ошибка при обработке изображений")
+                return ["Ошибка"]
     else:
         return ["Изображения отсутсвуют."]
 
@@ -162,24 +166,6 @@ def insert_to_list(data_type, data, final):
         final[3] = data
 
 
-def print_posts(list):
-    print("Вывод данных")
-    print("=================")
-    for i in range(len(list[0])):
-        print("Пост №" + str(i))
-        print("Автор:")
-        print(list[0][i], end='\n')
-        print("Текст:")
-        print(list[1][i], end='\n')
-        print("Внешние ссылки:")
-        for lnk in list[2][i]:
-                print(lnk, end='\n')
-        print("Изображения:")
-        for img in list[3][i]:
-                print(img, end='\n')
-        print('---------------')
-
-
 class MyThread(threading.Thread):
     def __init__(self, name, posts, list):
         threading.Thread.__init__(self)
@@ -199,7 +185,7 @@ class MyThread(threading.Thread):
 
 
 def parce_main(final):
-    # count = int(input("Введите кол-во новостей для парсинга: "))
+    count = int(input("Введите кол-во новостей для парсинга: "))
 
     driver = webdriver.Chrome(chrome_driver_path, chrome_options=options)
     print('Ждем загрузки страницы...')
@@ -244,15 +230,41 @@ def open_parcelist_from_file():
         return pickle.load(file)
 
 
-def save_to_json(posts):
+def print_posts(list):
+    print("Вывод данных")
+    print("=================")
+    for i in range(len(list[0])):
+        print("Пост №" + str(i))
+        print("Автор:")
+        print(list[0][i], end='\n')
+        print("Текст:")
+        print(list[1][i], end='\n')
+        print("Внешние ссылки:")
+        for lnk in list[2][i]:
+                print(lnk, end='\n')
+        print("Изображения:")
+        for img in list[3][i]:
+                print(img, end='\n')
+        print('---------------')
+
+
+def save_to_json(final_list):
+    posts = {}
+    for j in range(len(final_list[0])):
+        posts[j] = {
+            'author': final_list[0][j],
+            'text': final_list[1][j],
+            'links': str(final_list[2][j]),
+            'images': str(final_list[3][j])
+        }
+
     for i in range(len(posts)):
-        with open('posts.json',
-                  'w') as file:
+        with open('posts.json', 'w', encoding='utf-8') as file:
             json.dump(posts, file, indent=2, ensure_ascii=False)
 
 
 def load_from_json():
-    with open('posts.json','r') as file:
+    with open('posts.json', 'r', encoding='utf-8') as file:
         d = json.load(file)
     return d
 
@@ -269,16 +281,15 @@ if __name__ == '__main__':
     # final_list = open_parcelist_from_file()
 
     print_posts(final_list)
-    for j in range(len(final_list)):
-        final_list[j] = {i: final_list[j][i] for i in range(len(final_list[j]))}
-    dict = {i: final_list[i] for i in range(len(final_list))}
-    save_to_json(dict)
+
+    save_to_json(final_list)
+
     load_dict = load_from_json()
     print(load_dict)
 
     print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
 
-    #print(subprocess.call('python .\db-insert.py', shell=True))
+    print(subprocess.call('python .\db-insert.py', shell=True))
 
 
 

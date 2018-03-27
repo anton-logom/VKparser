@@ -10,12 +10,13 @@ def print_posts(list):
         print("Пост №" + str(i+1))
         print("Автор и текст:")
         print(list[i][0], end='\n')
-        if len(list[i][1]) > 1:
-            print("Внешние ссылки:")
-            print(list[i][1], end='\n')
+        print(list[i][1], end='\n')
         if len(list[i][2]) > 1:
             print("Изображения:")
             print(list[i][2], end='\n')
+        if len(list[i][2]) > 1:
+            print("Внешние ссылки:")
+            print(list[i][3], end='\n')
         print('---------------')
 
 if __name__ == '__main__':
