@@ -14,16 +14,16 @@ login = ""  # логин аккаунта вк (требуется только 
 password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
 
 # Windows
-# save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
-# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
+chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
-# MacOS
-save_images_path = "/Users/r3m1x/OSimg/"
-chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
-chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
-options.add_argument(chrome_cache_path)
+# # MacOS
+# save_images_path = "/Users/r3m1x/OSimg/"
+# chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
+# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
+# options.add_argument(chrome_cache_path)
 
 
 def avtorization(login, password, driver):
