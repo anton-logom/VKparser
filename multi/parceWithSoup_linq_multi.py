@@ -1,29 +1,30 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
-import time, requests, threading, pickle, os, multiprocessing, json
+import time, requests, threading, os, json
 from bs4 import BeautifulSoup
 from py_linq import Enumerable
+from itertools import groupby
 
 
 options = webdriver.ChromeOptions()
 
 # НАСТРОЙКИ
-count = 100
+count = 10
 login = ""  # логин аккаунта вк (требуется только если авторизация в браузере не выполнена)
 password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
 
 # Windows
-save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
-chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+# save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
+# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
 # # MacOS
-# save_images_path = "/Users/r3m1x/OSimg/"
-# chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
-# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
-# options.add_argument(chrome_cache_path)
+save_images_path = "/Users/r3m1x/OSimg/"
+chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
+chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
+options.add_argument(chrome_cache_path)
 
 
 def avtorization(login, password, driver):
@@ -106,7 +107,7 @@ def save_image(style):
         out_image.write(resource.content)
         out_image.close()
         time.sleep(0.05)
-        #return [image_path, out_image_path]
+        # return [image_path, out_image_path]
         return out_image_path
     else:
         return "Содержится видео, пропущено"
@@ -168,18 +169,21 @@ def print_posts(list):
 
 
 def save_to_json(final_list):
-    posts = {}
+    posts = []
     for j in range(len(final_list[0])):
-        posts[j] = {
+        posts.append({
             'author': final_list[0][j],
             'text': final_list[1][j],
-            'links': str(final_list[2][j]),
-            'images': str(final_list[3][j])
-        }
-
+            'links': '\n'.join(final_list[2][j]),
+            'images': '\n'.join(final_list[3][j])
+        })
+    lst = load_from_json()
+    posts += lst
+    posts = [v for i, v in enumerate(posts) if v not in posts[:i]]
     for i in range(len(posts)):
         with open('posts.json', 'w', encoding='utf-8') as file:
             json.dump(posts, file, indent=2, ensure_ascii=False)
+    print('json файл сохранен')
 
 
 def load_from_json():
@@ -189,6 +193,7 @@ def load_from_json():
 
 
 if __name__ == '__main__':
+    # count = int(input("Введите количество новостей для парсинга: "))
     print('Запуск парсинга...')
     start_time = time.time()
     final_list = ['-', '-', '-', '-']
@@ -211,14 +216,15 @@ if __name__ == '__main__':
         soup = BeautifulSoup(html_source, "html.parser")
         all_posts = soup.find_all('div', {"class": "post"})
 
+        print('Начат многопоточный парсинг...')
         threading.Thread(target=parce_authors(all_posts, final_list), name="authors")
         threading.Thread(target=parce_text(all_posts, final_list), name="text")
         threading.Thread(target=parce_links(all_posts, final_list), name="links")
         threading.Thread(target=parce_images(all_posts, final_list), name="images")
 
-    print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
-    threading.Thread(target=save_to_json(final_list), name="save_to_json")
-    threading.Thread(target=print_posts(final_list), name="print")
+        # threading.Thread(target=print_posts(final_list), name="print")
+        threading.Thread(target=save_to_json(final_list), name="save_to_json")
+        print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
 
 
 
