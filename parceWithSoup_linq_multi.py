@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
-import time, requests, threading, pickle, os, multiprocessing, json
+import time, requests, threading, os, json
 from bs4 import BeautifulSoup
 from py_linq import Enumerable
 
@@ -55,6 +55,12 @@ def avtorization(login, password, driver):
         return 0
 
 
+def parce_id(posts, final):
+    my_collection = Enumerable(posts)
+    id_posts = my_collection.select(lambda x: x.attrs["id"])
+    id_posts = id_posts.to_list()
+    insert_to_list("id", id_posts, final)
+
 def parce_authors(posts, final):
     my_collection = Enumerable(posts)
     authors = my_collection.select_many(lambda x: x.find("a", {"class": "author"}))
@@ -74,7 +80,7 @@ def search_text(post):
 def parce_text(posts, final):
     my_collection = Enumerable(posts)
     wall_text = my_collection.select(lambda x: search_text(x))
-    wall_text=wall_text.to_list()
+    wall_text = wall_text.to_list()
     insert_to_list("text", wall_text, final)
 
 
@@ -139,30 +145,32 @@ def parce_images(posts, final):
 
 
 def insert_to_list(data_type, data, final):
-    if data_type == "authors":
+    if data_type == "id":
         final[0] = data
-    if data_type == "text":
+    if data_type == "authors":
         final[1] = data
-    if data_type == "links":
+    if data_type == "text":
         final[2] = data
-    if data_type == "images":
+    if data_type == "links":
         final[3] = data
+    if data_type == "images":
+        final[4] = data
 
 
 def print_posts(list):
     print("Вывод данных")
     print("=================")
     for i in range(len(list[0])):
-        print("Пост №" + str(i))
+        print("ID: " + list[0][i])
         print("Автор:")
-        print(list[0][i], end='\n')
-        print("Текст:")
         print(list[1][i], end='\n')
+        print("Текст:")
+        print(list[2][i], end='\n')
         print("Внешние ссылки:")
-        for lnk in list[2][i]:
+        for lnk in list[3][i]:
                 print(lnk, end='\n')
         print("Изображения:")
-        for img in list[3][i]:
+        for img in list[4][i]:
                 print(img, end='\n')
         print('---------------')
 
@@ -171,16 +179,22 @@ def save_to_json(final_list):
     posts = []
     for j in range(len(final_list[0])):
         posts.append({
-            'author': final_list[0][j],
-            'text': final_list[1][j],
-            'links': str(final_list[2][j]),
-            'images': str(final_list[3][j])
+            'id': final_list[0][j],
+            'author': final_list[1][j],
+            'text': final_list[2][j],
+            'links': '\n'.join(final_list[3][j]),
+            'images': '\n'.join(final_list[4][j])
         })
-
+    # !!!   !!!     !!!     !!!
+    # анкомитить при необходимости хранить все в json
+    # lst = load_from_json()
+    # posts = lst + posts
+    # posts = [v for i, v in enumerate(posts) if v not in posts[:i]]
     for i in range(len(posts)):
         with open('posts.json', 'w', encoding='utf-8') as file:
             json.dump(posts, file, indent=2, ensure_ascii=False)
     print('json файл сохранен')
+
 
 def load_from_json():
     with open('posts.json', 'r', encoding='utf-8') as file:
@@ -189,11 +203,11 @@ def load_from_json():
 
 
 if __name__ == '__main__':
-    print("Введите кол-во новостей для парсинга: ")
+    print("Введите количество новостей для парсинга: ")
     count = int(input())
     print('Запуск парсинга...')
     start_time = time.time()
-    final_list = ['-', '-', '-', '-']
+    final_list = ['-', '-', '-', '-', '-']
     driver = webdriver.Chrome(chrome_driver_path, chrome_options=options)
     print('Ждем загрузки страницы...')
     driver.get("https://vk.com/feed")
@@ -214,6 +228,7 @@ if __name__ == '__main__':
         all_posts = soup.find_all('div', {"class": "post"})
 
         print('Начат многопоточный парсинг...')
+        threading.Thread(target=parce_id(all_posts, final_list), name="id")
         threading.Thread(target=parce_authors(all_posts, final_list), name="authors")
         threading.Thread(target=parce_text(all_posts, final_list), name="text")
         threading.Thread(target=parce_links(all_posts, final_list), name="links")
@@ -222,8 +237,8 @@ if __name__ == '__main__':
         threading.Thread(target=print_posts(final_list), name="print")
         threading.Thread(target=save_to_json(final_list), name="save_to_json")
         print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
+        input()
 
-    input('для закрытия окна нажмите enter')
 
 
 
