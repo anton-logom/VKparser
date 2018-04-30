@@ -14,16 +14,16 @@ login = ""  # логин аккаунта вк (требуется только 
 password = ""  # пароль аккаунта вк (требуется только если авторизация в браузере не выполнена)
 
 # Windows
-save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
-chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
-profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
-options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
+# save_images_path = ".\downloads\img"  # директория для сохранения картинок и префикс имени файлов картинок
+# chrome_driver_path = ".\chromedriver.exe"  # путь до драйвера Chrome
+# profile_dir = r"C:\Users\Antoshka\AppData\Local\Google\Chrome\User Data"  # Директория кэша Chrome
+# options.add_argument("--user-data-dir=" + os.path.abspath(profile_dir))
 
-# # MacOS
-# save_images_path = "/Users/r3m1x/OSimg/"
-# chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
-# chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
-# options.add_argument(chrome_cache_path)
+# MacOS
+save_images_path = "/Users/r3m1x/OSimg/"
+chrome_driver_path = "/Users/r3m1x/ChromeDriver/chromedriver"
+chrome_cache_path = "--user-data-dir=/Users/r3m1x/ChromeDriver/caсhe/"
+options.add_argument(chrome_cache_path)
 
 
 def avtorization(login, password, driver):
@@ -60,6 +60,7 @@ def parce_id(posts, final):
     id_posts = my_collection.select(lambda x: x.attrs["id"])
     id_posts = id_posts.to_list()
     insert_to_list("id", id_posts, final)
+
 
 def parce_authors(posts, final):
     my_collection = Enumerable(posts)
@@ -161,6 +162,7 @@ def print_posts(list):
     print("Вывод данных")
     print("=================")
     for i in range(len(list[0])):
+        print("Пост №" + str(i + 1))
         print("ID: " + list[0][i])
         print("Автор:")
         print(list[1][i], end='\n')
@@ -175,6 +177,11 @@ def print_posts(list):
         print('---------------')
 
 
+def check_equals(post, lst):
+    if post not in lst:
+        return post
+
+
 def save_to_json(final_list):
     posts = []
     for j in range(len(final_list[0])):
@@ -185,14 +192,22 @@ def save_to_json(final_list):
             'links': '\n'.join(final_list[3][j]),
             'images': '\n'.join(final_list[4][j])
         })
-    # !!!   !!!     !!!     !!!
-    # анкомитить при необходимости хранить все в json
-    # lst = load_from_json()
-    # posts = lst + posts
-    # posts = [v for i, v in enumerate(posts) if v not in posts[:i]]
-    for i in range(len(posts)):
-        with open('posts.json', 'w', encoding='utf-8') as file:
-            json.dump(posts, file, indent=2, ensure_ascii=False)
+    with open('posts.json', 'a+') as f:
+        f.seek(0, 2)
+        if f.tell() == 0:
+            json.dump(posts, f, indent=2, ensure_ascii=False)
+        else:
+            lst = load_from_json()
+            collection = Enumerable(posts)
+            result = collection.select(lambda x: check_equals(x, lst))
+            result = result.to_list()
+            result = [x for x in result if x]
+            f.seek(f.tell()-1, 0)
+            f.truncate()
+            for i in range(len(result)):
+                f.write(' ,\n')
+                json.dump(result[i], f, indent=2, ensure_ascii=False)
+            f.write('\n]')
     print('json файл сохранен')
 
 
@@ -203,8 +218,7 @@ def load_from_json():
 
 
 if __name__ == '__main__':
-    print("Введите количество новостей для парсинга: ")
-    count = int(input())
+    # count = int(input("Введите количество новостей для парсинга: "))
     print('Запуск парсинга...')
     start_time = time.time()
     final_list = ['-', '-', '-', '-', '-']
@@ -218,6 +232,10 @@ if __name__ == '__main__':
         # Пролистывание страницы
         while len(driver.find_elements_by_class_name("post")) < count:
             driver.execute_script("scroll(0,1000000)")
+
+        # Прогрузка страницы
+        # while driver.find_elements_by_xpath("//div[@class='_post_content']").__len__() <= count:
+        #     driver.execute_script("feed.showMore();")
 
         html_source = driver.page_source
         print("Копирование завершено.")
@@ -237,7 +255,6 @@ if __name__ == '__main__':
         threading.Thread(target=print_posts(final_list), name="print")
         threading.Thread(target=save_to_json(final_list), name="save_to_json")
         print("Парсинг завершен, время работы составило: %s сек" % (time.time() - start_time))
-        input()
 
 
 
