@@ -1,3 +1,4 @@
+# coding: utf8
 import MySQLdb
 import json
 import checksum
@@ -23,7 +24,9 @@ def db_clear():
                            charset="utf8",
                            db=mysql_config.db)
     c = conn.cursor()
-    c.execute('TRUNCATE `parse`')
+    c.execute('TRUNCATE `parse_text`')
+    c.execute('TRUNCATE `parse_links`')
+    c.execute('TRUNCATE `parse_images`')
     conn.commit()
     c.close()
     conn.close()
@@ -49,18 +52,42 @@ while __name__ == '__main__':
                            passwd=mysql_config.password,
                            charset="utf8",
                            db=mysql_config.db)
+    conn.autocommit(True)
     c = conn.cursor()
+
+    c.execute('SELECT max(`id`) FROM parse_text')
+    lastdb = c.fetchone()[0]
+    if not(lastdb):
+        lastdb = 0
+    list_put = list_put[lastdb+1:]
+
+    list_put_images = []
+    list_put_links = []
+    for i in range(len(list_put)):
+        crimg = list_put[i]['images'].split('\n')
+        for cr in crimg:
+            list_put_images.append([lastdb+1+i, cr])
+        crlnk = list_put[i]['links'].split('\n')
+        for cr in crlnk:
+            list_put_links.append([lastdb+1+i, cr])
+
 
     try:
         c.executemany("""
-        INSERT IGNORE INTO parse (`news-id`, `news-authors`, `news-text`, `news-links`, `news-images`) VALUES (%(id)s, %(author)s, %(text)s, %(links)s, %(images)s)
+        INSERT IGNORE INTO parse_text (`postid`, `author`, `text`) VALUES (%(id)s, %(author)s, %(text)s)
         """, list_put)
-        conn.commit()
-        print("Содержимое добавленно в БД, строк добавлено: " + str(c.rowcount))
+        kv1 = c.rowcount
+        c.executemany("""
+        INSERT INTO parse_images (`id`, `image`) VALUES (%s, %s)
+        """, list_put_images)
+        kv2 = c.rowcount
+        c.executemany("""
+        INSERT INTO parse_links (`id`, `link`) VALUES (%s, %s)
+        """, list_put_links)
+        kv3 = c.rowcount
+        print("Содержимое добавленно в БД, добавлено: " + str(kv1) + "постов, " + str(kv2) + "изображений, " + str(kv3) + "ссылок.")
     except MySQLdb.DatabaseError:
         print('Проблема при записи в БД!')
-
-    conn.commit()
     c.close()
     conn.close()
     print("Время работы составило: %s сек" % (time.time() - start_time))
